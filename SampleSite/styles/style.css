@@ -1,0 +1,26 @@
+header {
+    display: flex;
+}
+
+.logo {
+    width: 64px;
+    margin: 8px;
+}
+
+ul, ol {
+    list-style: none;
+    background-color: #000000;
+    float: left;
+    height: 64px;
+    margin-top: 8px;
+}
+
+ul li, ol li {
+    width: 100px;
+    text-align: center;
+    text-decoration: none;
+    line-height: 64px;
+    color: #ffffff;
+    font-weight: bold;
+    float: left;
+}
