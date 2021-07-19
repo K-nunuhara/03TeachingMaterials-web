@@ -57,7 +57,7 @@ function saveMessage(messageText) {
     text: messageText,
     profilePicUrl: getProfilePicUrl(),
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(function(error) {
+  }).catch(function (error) {
     console.error('Error writing new message to database', error);
   });
 }
@@ -66,19 +66,19 @@ function saveMessage(messageText) {
 function loadMessages() {
   // Create the query to load the last 12 messages and listen for new ones.
   var query = firebase.firestore()
-                  .collection('messages')
-                  .orderBy('timestamp', 'desc')
-                  .limit(12);
-  
+    .collection('messages')
+    .orderBy('timestamp', 'desc')
+    .limit(12);
+
   // Start listening to the query.
-  query.onSnapshot(function(snapshot) {
-    snapshot.docChanges().forEach(function(change) {
+  query.onSnapshot(function (snapshot) {
+    snapshot.docChanges().forEach(function (change) {
       if (change.type === 'removed') {
         deleteMessage(change.doc.id);
       } else {
         var message = change.doc.data();
         displayMessage(change.doc.id, message.timestamp, message.name,
-                       message.text, message.profilePicUrl, message.imageUrl);
+          message.text, message.profilePicUrl, message.imageUrl);
       }
     });
   });
@@ -86,38 +86,56 @@ function loadMessages() {
 
 // Saves a new message containing an image in Firebase.
 // This first saves the image in Firebase storage.
-function saveImageMessage(file) {
-  // 1 - We add a message with a loading icon that will get updated with the shared image.
-  firebase.firestore().collection('messages').add({
-    name: getUserName(),
-    imageUrl: LOADING_IMAGE_URL,
-    profilePicUrl: getProfilePicUrl(),
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(messageRef) {
-    // 2 - Upload the image to Cloud Storage.
-    var filePath = firebase.auth().currentUser.uid + '/' + messageRef.id + '/' + file.name;
-    return firebase.storage().ref(filePath).put(file).then(function(fileSnapshot) {
-      // 3 - Generate a public URL for the file.
-      return fileSnapshot.ref.getDownloadURL().then((url) => {
-        // 4 - Update the chat message placeholder with the image's URL.
-        return messageRef.update({
-          imageUrl: url,
-          storageUri: fileSnapshot.metadata.fullPath
-        });
-      });
+async function saveImageMessage(file) {
+  try {
+    // 1 - We add a message with a loading icon that will get updated with the shared image.
+    var messageRef = await firebase.firestore().collection('messages').add({
+      name: getUserName(),
+      imageUrl: LOADING_IMAGE_URL,
+      profilePicUrl: getProfilePicUrl(),
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-  }).catch(function(error) {
+    // 2 - Upload the image to Cloud Storage.
+    var filePath = await firebase.auth().currentUser.uid + '/' + messageRef.id + '/' + file.name;
+    var fileSnapshot = await firebase.storage().ref(filePath).put(file);
+    // 3 - Generate a public URL for the file.
+    var url = await fileSnapshot.ref.getDownloadURL();
+    // 4 - Update the chat message placeholder with the image's URL.
+    var result = await messageRef.update({
+      imageUrl: url,
+      storageUri: fileSnapshot.metadata.fullPath
+    });
+  } catch (error) {
     console.error('There was an error uploading a file to Cloud Storage:', error);
-  });
+  }
+};
 
 // Saves the messaging device token to the datastore.
 function saveMessagingDeviceToken() {
-  // TODO 10: Save the device token in the realtime datastore
+  firebase.messaging().getToken().then(function(currentToken) {
+    if (currentToken) {
+      console.log('Got FCM device token:', currentToken);
+      // Saving the Device Token to the datastore.
+      firebase.firestore().collection('fcmTokens').doc(currentToken)
+          .set({uid: firebase.auth().currentUser.uid});
+    } else {
+      // Need to request permissions to show notifications.
+      requestNotificationsPermissions();
+    }
+  }).catch(function(error){
+    console.error('Unable to get messaging token.', error);
+  });
 }
 
-// Requests permissions to show notifications.
+// Requests permission to show notifications.
 function requestNotificationsPermissions() {
-  // TODO 11: Request permissions to send notifications.
+  console.log('Requesting notifications permission...');
+  firebase.messaging().requestPermission().then(function() {
+    // Notification permission granted.
+    saveMessagingDeviceToken();
+  }).catch(function(error) {
+    console.error('Unable to get permission to notify.', error);
+  });
 }
 
 // Triggered when a file is selected via the media picker.
@@ -148,7 +166,7 @@ function onMessageFormSubmit(e) {
   e.preventDefault();
   // Check that the user entered a message and is signed in.
   if (messageInputElement.value && checkSignedInWithMessage()) {
-    saveMessage(messageInputElement.value).then(function() {
+    saveMessage(messageInputElement.value).then(function () {
       // Clear message text field and re-enable the SEND button.
       resetMaterialTextfield(messageInputElement);
       toggleButton();
@@ -212,11 +230,11 @@ function resetMaterialTextfield(element) {
 
 // Template for messages.
 var MESSAGE_TEMPLATE =
-    '<div class="message-container">' +
-      '<div class="spacing"><div class="pic"></div></div>' +
-      '<div class="message"></div>' +
-      '<div class="name"></div>' +
-    '</div>';
+  '<div class="message-container">' +
+  '<div class="spacing"><div class="pic"></div></div>' +
+  '<div class="message"></div>' +
+  '<div class="name"></div>' +
+  '</div>';
 
 // Adds a size to Google Profile pics URLs.
 function addSizeToGoogleProfilePic(url) {
@@ -296,7 +314,7 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
     messageElement.innerHTML = messageElement.innerHTML.replace(/\n/g, '<br>');
   } else if (imageUrl) { // If the message is an image.
     var image = document.createElement('img');
-    image.addEventListener('load', function() {
+    image.addEventListener('load', function () {
       messageListElement.scrollTop = messageListElement.scrollHeight;
     });
     image.src = imageUrl + '&' + new Date().getTime();
@@ -304,7 +322,7 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
     messageElement.appendChild(image);
   }
   // Show the card fading-in and scroll to view the new message.
-  setTimeout(function() {div.classList.add('visible')}, 1);
+  setTimeout(function () { div.classList.add('visible') }, 1);
   messageListElement.scrollTop = messageListElement.scrollHeight;
   messageInputElement.focus();
 }
@@ -323,8 +341,8 @@ function toggleButton() {
 function checkSetup() {
   if (!window.firebase || !(firebase.app instanceof Function) || !firebase.app().options) {
     window.alert('You have not configured and imported the Firebase SDK. ' +
-        'Make sure you go through the codelab setup instructions and make ' +
-        'sure you are running the codelab using `firebase serve`');
+      'Make sure you go through the codelab setup instructions and make ' +
+      'sure you are running the codelab using `firebase serve`');
   }
 }
 
@@ -355,7 +373,7 @@ messageInputElement.addEventListener('keyup', toggleButton);
 messageInputElement.addEventListener('change', toggleButton);
 
 // Events for image upload.
-imageButtonElement.addEventListener('click', function(e) {
+imageButtonElement.addEventListener('click', function (e) {
   e.preventDefault();
   mediaCaptureElement.click();
 });
