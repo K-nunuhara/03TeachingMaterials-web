@@ -13,10 +13,10 @@ function checkSetup() {
 checkSetup();
 
 M.AutoInit();
-M.CharacterCounter.init(document.querySelectorAll('#textarea'));
 M.Range.init(document.querySelectorAll('#range'));
+M.CharacterCounter.init(document.querySelectorAll('#textarea'));
 
-// Sample of array
+// Sample of array: [0] ~ [3]
 var textElementsArray = new Array();
 textElementsArray.push(document.getElementById('first_name'));
 textElementsArray.push(document.getElementById('last_name'));
